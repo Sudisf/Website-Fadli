@@ -1,70 +1,783 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>CSRF Online</title>
-		<link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Anonymous_emblem.svg/1200px-Anonymous_emblem.svg.png">
-		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-	</head>
-	<body>
-	</body>
-</html>
-<div class="area">
-  <div class="container">
-      <div class="card text-center">
-        <div class="card-header">
-            <div class="card-title">
-                <h1>CSRF Online</h1>
-                <i>Coded by Fadli</i>
+<html lang="id">
+<head>
+    <script>
+        /* --- SATPAM PROTEKSI HALAMAN (WAJIB LOGIN) --- */
+        if (localStorage.getItem('is_logged_in') !== 'true') {
+            window.location.href = 'login.html';
+        }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Ludo Arena | DLIX Gaming</title>
+    <style>
+        :root {
+            --bg-primary: #08090c;
+            --bg-surface: #12141c;
+            --accent-cyan: #00f2fe;
+            --accent-red: #ff0055;
+            --accent-yellow: #ffb703;
+            --accent-purple: #9d4edd;
+            --accent-green: #00ff88;
+            --text-main: #ffffff;
+            --text-muted: #a0aec0;
+            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            background: radial-gradient(circle at 50% 50%, rgba(0, 242, 254, 0.05), transparent 70%), var(--bg-primary);
+            overflow-x: hidden;
+        }
+
+        .top-bar {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            z-index: 10;
+        }
+
+        .btn-back {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            border: 2px solid var(--accent-purple);
+            color: var(--accent-purple);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 1px;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-back:hover {
+            background: var(--accent-purple);
+            color: var(--bg-primary);
+            box-shadow: 0 0 20px rgba(157, 78, 221, 0.5);
+            transform: translateX(-3px);
+        }
+
+        .game-title {
+            font-size: 24px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .game-title span {
+            background: linear-gradient(45deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* --- GAME LAYOUT --- */
+        .game-container {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 30px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .game-container.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .board-wrapper {
+            background: var(--bg-surface);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .ludo-board {
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-width: 550px;
+            background: #0b0d16;
+            border: 2px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+
+        /* Home Zones */
+        .home-zone {
+            grid-column: span 6;
+            grid-row: span 6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .home-inner {
+            width: 80%;
+            height: 80%;
+            background: rgba(8, 9, 12, 0.8);
+            border-radius: 12px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            padding: 10px;
+            border: 2px dashed rgba(255,255,255,0.2);
+        }
+        .home-slot {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+        }
+
+        .hz-red { background: rgba(255, 0, 85, 0.15); border-color: var(--accent-red); }
+        .hz-green { background: rgba(0, 255, 136, 0.15); border-color: var(--accent-green); }
+        .hz-yellow { background: rgba(255, 183, 3, 0.15); border-color: var(--accent-yellow); }
+        .hz-cyan { background: rgba(0, 242, 254, 0.15); border-color: var(--accent-cyan); }
+
+        .center-goal {
+            grid-column: 7 / span 3;
+            grid-row: 7 / span 3;
+            background: #121420;
+            border: 2px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            padding: 6px;
+            justify-content: center;
+            align-items: center;
+            font-weight: 900;
+            font-size: 11px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+            text-transform: uppercase;
+        }
+
+        .ludo-cell {
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(18, 20, 28, 0.6);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1px;
+            padding: 1px;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Colors & Safe Zones */
+        .path-red { background: rgba(255, 0, 85, 0.35) !important; }
+        .path-green { background: rgba(0, 255, 136, 0.35) !important; }
+        .path-yellow { background: rgba(255, 183, 3, 0.35) !important; }
+        .path-cyan { background: rgba(0, 242, 254, 0.35) !important; }
+        
+        .safe-zone::before {
+            content: '🛡️';
+            position: absolute;
+            font-size: 8px;
+            opacity: 0.5;
+            top: 1px; left: 1px;
+            z-index: 1;
+        }
+        .safe-zone { background: rgba(255, 255, 255, 0.12) !important; border: 1px dashed rgba(255,255,255,0.3); }
+
+        /* --- TOKENS & ANIMATIONS --- */
+        .token {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1.5px solid #fff;
+            box-shadow: 0 0 6px rgba(255,255,255,0.4);
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), top 0.2s, left 0.2s;
+            z-index: 5;
+        }
+        .token.playable {
+            animation: playablePulse 0.8s infinite alternate;
+            border-color: #fff;
+            transform: scale(1.3);
+            box-shadow: 0 0 14px #fff, 0 0 4px #000;
+            z-index: 50;
+        }
+        @keyframes playablePulse {
+            0% { transform: scale(1.1); box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+            100% { transform: scale(1.35); box-shadow: 0 0 16px rgba(255,255,255,1); }
+        }
+        .token.moving { 
+            animation: tokenJump 0.25s ease-out; 
+            z-index: 100;
+        }
+        @keyframes tokenJump {
+            0% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.7) translateY(-10px); filter: brightness(1.3); }
+            100% { transform: scale(1) translateY(0); }
+        }
+
+        /* Animasi Kena Makan (Kicked) */
+        .token.kicked {
+            animation: tokenGetEaten 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+            z-index: 150;
+        }
+        @keyframes tokenGetEaten {
+            0% { transform: scale(1) rotate(0deg); filter: none; }
+            15% { transform: scale(1.3) rotate(-15deg); filter: brightness(1.5) drop-shadow(0 0 10px #ff0055); }
+            30% { transform: scale(1.3) rotate(15deg); }
+            45% { transform: scale(1.3) rotate(-15deg); }
+            60% { transform: scale(1.3) rotate(15deg); }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        /* --- CONTROL PANEL --- */
+        .control-panel {
+            background: var(--bg-surface);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        .players-dashboard {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .player-status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .player-status-row.active-turn {
+            background: rgba(0, 242, 254, 0.06);
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-cyan);
+            padding-left: 10px;
+        }
+
+        .player-info-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .dice-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .dice-wrapper { perspective: 600px; padding: 15px 0; }
+        .cube-dice {
+            width: 50px; height: 50px; position: relative; transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.3, 1);
+        }
+        .dice-face {
+            position: absolute; width: 50px; height: 50px; background: #161925;
+            border: 2px solid var(--accent-cyan); border-radius: 10px;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: 900; font-size: 18px; color: var(--accent-cyan);
+            backface-visibility: hidden;
+        }
+        .face-1 { transform: rotateY(0deg) translateZ(25px); }
+        .face-6 { transform: rotateY(180deg) translateZ(25px); border-color: var(--accent-purple); color: var(--accent-purple); }
+        .face-2 { transform: rotateY(90deg) translateZ(25px); }
+        .face-5 { transform: rotateY(-90deg) translateZ(25px); }
+        .face-3 { transform: rotateX(90deg) translateZ(25px); }
+        .face-4 { transform: rotateX(-90deg) translateZ(25px); }
+
+        .btn-roll {
+            width: 100%; background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+            color: var(--bg-primary); border: none; padding: 14px; border-radius: 12px;
+            font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
+            cursor: pointer; box-shadow: 0 0 15px rgba(0, 242, 254, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-roll:disabled { background: #1b1e2a; color: var(--text-muted); box-shadow: none; cursor: not-allowed; }
+
+        .log-box { background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; height: 120px; overflow-y: auto; font-size: 12px; color: var(--text-muted); }
+        .log-entry { margin-bottom: 4px; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(4, 5, 7, 0.85); backdrop-filter: blur(10px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 2000; opacity: 0; pointer-events: none; transition: var(--transition-smooth);
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-box {
+            background: #11131a; border: 1px solid var(--accent-cyan); border-radius: 24px; padding: 35px; width: 90%; max-width: 450px; text-align: center;
+        }
+        .select-custom { width: 100%; background: #1a1d29; border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 12px; border-radius: 10px; margin-bottom: 15px; outline: none; cursor: pointer; font-weight: 600; }
+        .btn-action { width: 100%; background: linear-gradient(45deg, var(--accent-cyan), var(--accent-purple)); color: var(--bg-primary); border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 700; text-transform: uppercase; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <a href="index.html" class="btn-back">&larr; Kembali</a>
+        <div class="game-title">Neon <span>Ludo Arena</span></div>
+    </div>
+
+    <div class="game-container" id="mainGameArea">
+        <div class="board-wrapper">
+            <div class="ludo-board" id="ludoBoardGrid">
+                <div class="home-zone hz-red" style="grid-area: 1 / 1 / 7 / 7;"><div class="home-inner" id="home-0"></div></div>
+                <div class="home-zone hz-green" style="grid-area: 1 / 10 / 7 / 16;"><div class="home-inner" id="home-1"></div></div>
+                <div class="home-zone hz-yellow" style="grid-area: 10 / 10 / 16 / 16;"><div class="home-inner" id="home-2"></div></div>
+                <div class="home-zone hz-cyan" style="grid-area: 10 / 1 / 16 / 7;"><div class="home-inner" id="home-3"></div></div>
+                <div class="center-goal" style="grid-area: 7 / 7 / 10 / 10;">GOAL</div>
             </div>
         </div>
-        <div class="card-text px-4 mt-4">
-        		<form method="post">
-        				URL Target:<br>
-								<input type="text" name="action" class="form-control" required placeholder="http://site.com/upload.php"><br>
-								POST File:<br>
-								<input type="text" name="name" class="form-control" placeholder="file"><br>
-		            <input type="submit" class="btn text-white" value="Submit"><br>
-        		</form>
-<?php if(isset($_POST['action']) && isset($_POST['name'])):?>
-						<hr>
-    				<form method="post" target="_blank" action="<?php echo $_POST['action'];?>" enctype="multipart/form-data">
-    						<div class="custom-file">
-									<input type="file" class="custom-file-input" id="file" name="<?php echo $_POST['name'];?>">
-									<label class="custom-file-label" for="file">Choose file...</label>
-								</div>
-								<br><br>
-		            <input type="submit" class="btn text-white" value="Upload"><br><br>
-    				</form>
-<?php endif;?>
+
+        <div class="control-panel">
+            <div>
+                <div class="players-dashboard" id="dashboardArea"></div>
+                <div class="dice-area">
+                    <div class="dice-wrapper">
+                        <div class="cube-dice" id="cubeDiceElement">
+                            <div class="dice-face face-1">1</div>
+                            <div class="dice-face face-2">2</div>
+                            <div class="dice-face face-3">3</div>
+                            <div class="dice-face face-4">4</div>
+                            <div class="dice-face face-5">5</div>
+                            <div class="dice-face face-6">6</div>
+                        </div>
+                    </div>
+                    <button class="btn-roll" id="rollBtn" onclick="handleRoll()">🎲 Kocok Dadu</button>
+                </div>
+            </div>
+            <div class="log-box" id="logBox"></div>
         </div>
-      </div>
-  </div>
-</div>
-<style>
-	.area {
-		height: 100vh;
-		display: flex;
-		align-items: center;
-		justify-content: center 
-	}
-	.area .container {
-		margin: 0 
-	}
-	body {
-		background-color:#000000; 
-		background-image:url('https://i.imgur.com/hLcQCBx.gif');
-	}
-	.form-control, .form-control:focus, .card, .custom-file-label {
-		background-color: transparent;
-		color: white;
-	}
-	.btn {
-		border-color: #39ff14;
-	}
-</style>
-<script>
-	$("#file").change(function(){
-		 $('.custom-file-label').text($(this).val());
-	});
-</script>
+    </div>
+
+    <div class="modal-overlay open" id="setupModal">
+        <div class="modal-box">
+            <div class="modal-title">Konfigurasi Ludo Arena</div>
+            <label style="display:block; text-align:left; font-size:13px; margin-bottom:8px; color:var(--text-muted);">JUMLAH PEMAIN NYATA (HUMAN)</label>
+            <select class="select-custom" id="humanCountSelect">
+                <option value="1">1 Player (Kamu vs 3 BOT)</option>
+                <option value="2">2 Player (2 Human vs 2 BOT)</option>
+                <option value="3">3 Player (3 Human vs 1 BOT)</option>
+                <option value="4">4 Player (Full Real Man)</option>
+            </select>
+            <button class="btn-action" onclick="startGame()">Mulai Arena</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="winnerModal">
+        <div class="modal-box">
+            <div style="font-size: 50px; margin-bottom: 10px;">🏆</div>
+            <div class="modal-title">Match Finished</div>
+            <p id="winnerMessageText" style="color: var(--text-muted); margin-bottom: 20px;"></p>
+            <button class="btn-action" onclick="location.reload();">Main Lagi</button>
+        </div>
+    </div>
+
+    <script>
+        // --- KORDINAT MATRIX FIX LUDO (52 PETAK PRESIFI DAN SEJAJAR SEMPURNA) ---
+        const commonTrack = [
+            // Sisi Kiri (Sayap Merah) - Bergerak Ke Kanan menuju pertigaan tengah
+            {r:7, c:1}, {r:7, c:2}, {r:7, c:3}, {r:7, c:4}, {r:7, c:5}, {r:7, c:6},
+            // Sisi Atas Kiri (Sayap Hijau) - Bergerak Naik Ke Atas
+            {r:6, c:7}, {r:5, c:7}, {r:4, c:7}, {r:3, c:7}, {r:2, c:7}, {r:1, c:7},
+            // Atas Tengah (Puncak Sayap Hijau)
+            {r:1, c:8},
+            // Sisi Atas Kanan (Sayap Hijau) - Bergerak Turun Ke Bawah menuju tengah
+            {r:1, c:9}, {r:2, c:9}, {r:3, c:9}, {r:4, c:9}, {r:5, c:9}, {r:6, c:9},
+            // Sisi Kanan Atas (Sayap Kuning) - Bergerak Ke Kanan
+            {r:7, c:10}, {r:7, c:11}, {r:7, c:12}, {r:7, c:13}, {r:7, c:14}, {r:7, c:15},
+            // Kanan Tengah (Ujung Sayap Kuning)
+            {r:8, c:15},
+            // Sisi Kanan Bawah (Sayap Kuning) - Bergerak Ke Kiri menuju pertigaan tengah
+            {r:9, c:15}, {r:9, c:14}, {r:9, c:13}, {r:9, c:12}, {r:9, c:11}, {r:9, c:10},
+            // Sisi Bawah Kanan (Sayap Biru Cyan) - Bergerak Turun Ke Bawah
+            {r:10, c:9}, {r:11, c:9}, {r:12, c:9}, {r:13, c:9}, {r:14, c:9}, {r:15, c:9},
+            // Bawah Tengah (Dasar Sayap Biru Cyan)
+            {r:15, c:8},
+            // Sisi Bawah Kiri (Sayap Biru Cyan) - Bergerak Naik Ke Atas menuju tengah
+            {r:15, c:7}, {r:14, c:7}, {r:13, c:7}, {r:12, c:7}, {r:11, c:7}, {r:10, c:7},
+            // Sisi Kiri Bawah (Sayap Merah) - Bergerak Ke Kiri menuju ujung kandang
+            {r:9, c:6}, {r:9, c:5}, {r:9, c:4}, {r:9, c:3}, {r:9, c:2}, {r:9, c:1},
+            // Kiri Tengah (Titik Finish Kembali Sayap Merah)
+            {r:8, c:1}
+        ];
+
+        // Jalur lurus masuk ke rumah masing-masing warna (5 Langkah menuju GOAL)
+        const homeStrips = [
+            [{r:8, c:2}, {r:8, c:3}, {r:8, c:4}, {r:8, c:5}, {r:8, c:6}],       // P0 (Merah - Baris 8 Tengah)
+            [{r:2, c:8}, {r:3, c:8}, {r:4, c:8}, {r:5, c:8}, {r:6, c:8}],       // P1 (Hijau - Kolom 8 Tengah)
+            [{r:8, c:14}, {r:8, c:13}, {r:8, c:12}, {r:8, c:11}, {r:8, c:10}], // P2 (Kuning - Baris 8 Tengah)
+            [{r:14, c:8}, {r:13, c:8}, {r:12, c:8}, {r:11, c:8}, {r:10, c:8}]   // P3 (Cyan - Kolom 8 Tengah)
+        ];
+
+        // Pintu keluar kandang (start) & Zona Aman Ludo Internasional
+        const startIndexes = [0, 13, 26, 39];
+        const safeZoneIndexes = [0, 8, 13, 21, 26, 34, 39, 47]; 
+
+        const colors = ['#ff0055', '#00ff88', '#ffb703', '#00f2fe'];
+        const cssClasses = ['path-red', 'path-green', 'path-yellow', 'path-cyan'];
+
+        let players = [];
+        let turnIndex = 0;
+        let isMoving = false;
+        let currentRoll = 0;
+
+        function initBoardDOM() {
+            const boardGrid = document.getElementById('ludoBoardGrid');
+            
+            // Render Jalur Utama
+            commonTrack.forEach((cell, idx) => {
+                const el = document.createElement('div');
+                el.className = 'ludo-cell';
+                el.style.gridRowStart = cell.r;
+                el.style.gridColumnStart = cell.c;
+                el.id = `cell-common-${idx}`;
+                
+                if(idx === 0) el.classList.add('path-red');
+                if(idx === 13) el.classList.add('path-green');
+                if(idx === 26) el.classList.add('path-yellow');
+                if(idx === 39) el.classList.add('path-cyan');
+
+                if (safeZoneIndexes.includes(idx)) el.classList.add('safe-zone');
+                boardGrid.appendChild(el);
+            });
+
+            // Render Jalur Rumah Tengah (Home Strip)
+            homeStrips.forEach((strip, pIdx) => {
+                strip.forEach((cell, sIdx) => {
+                    const el = document.createElement('div');
+                    el.className = `ludo-cell ${cssClasses[pIdx]}`;
+                    el.style.gridRowStart = cell.r;
+                    el.style.gridColumnStart = cell.c;
+                    el.id = `cell-home-strip-${pIdx}-${sIdx}`;
+                    boardGrid.appendChild(el);
+                });
+            });
+        }
+
+        function startGame() {
+            const humanCount = parseInt(document.getElementById('humanCountSelect').value);
+            document.getElementById('setupModal').classList.remove('open');
+            document.getElementById('mainGameArea').classList.add('visible');
+
+            initBoardDOM();
+
+            for (let i = 0; i < 4; i++) {
+                let name = "";
+                let isBot = i >= humanCount;
+                if (!isBot) {
+                    name = i === 0 ? (localStorage.getItem('user_identity') || "KAMU") : `PLAYER ${i+1}`;
+                } else {
+                    name = `BOT ${['ALPHA', 'BETA', 'OMEGA'][i - humanCount] || 'CYBER'}`;
+                }
+
+                players.push({
+                    id: i,
+                    name: name.toUpperCase(),
+                    isBot: isBot,
+                    color: colors[i],
+                    homeId: `home-${i}`,
+                    tokens: [-1, -1, -1, -1],
+                    stepCounts: [-1, -1, -1, -1]
+                });
+
+                const homeInner = document.getElementById(`home-${i}`);
+                homeInner.innerHTML = ''; 
+                for (let t = 0; t < 4; t++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'home-slot';
+                    slot.id = `slot-${i}-${t}`;
+
+                    const tok = document.createElement('div');
+                    tok.className = 'token';
+                    tok.id = `token-${i}-${t}`;
+                    tok.style.backgroundColor = colors[i];
+                    tok.addEventListener('click', () => handleTokenClick(i, t));
+
+                    slot.appendChild(tok);
+                    homeInner.appendChild(slot);
+                }
+            }
+
+            updateDashboard();
+            addLog(`Sistem Sinkron. Lintasan Sejajar Sempurna. Giliran: ${players[turnIndex].name}`, "var(--accent-cyan)");
+            triggerTurnStart();
+        }
+
+        function updateDashboard() {
+            dashboardArea.innerHTML = '<h3>Status Pertandingan</h3>';
+            players.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.className = `player-status-row ${idx === turnIndex ? 'active-turn' : ''}`;
+                let finishedCount = p.tokens.filter(pos => pos === 99).length;
+                row.innerHTML = `
+                    <div class="player-info-name">
+                        <div style="width:12px; height:12px; border-radius:50%; background:${p.color}; box-shadow:0 0 8px ${p.color}"></div>
+                        <span>${p.name} ${p.isBot ? '[BOT]' : ''}</span>
+                    </div>
+                    <div style="font-size:13px; font-weight:700; color:var(--text-muted)">Goal: ${finishedCount} / 4 Pion</div>
+                `;
+                dashboardArea.appendChild(row);
+            });
+        }
+
+        function rollDice3D(num) {
+            const angleMap = { 1: {x:0, y:0}, 6: {x:0, y:180}, 2: {x:0, y:-90}, 5: {x:0, y:90}, 3: {x:-90, y:0}, 4: {x:90, y:0} };
+            const rot = angleMap[num];
+            const rx = rot.x + 1080;
+            const ry = rot.y + 1080;
+            cubeDiceElement.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+        }
+
+        function triggerTurnStart() {
+            updateDashboard();
+            if (players[turnIndex].isBot) {
+                rollBtn.disabled = true;
+                rollBtn.innerHTML = `🤖 ${players[turnIndex].name} BERPIKIR...`;
+                setTimeout(executeBotTurn, 1000);
+            } else {
+                rollBtn.disabled = false;
+                rollBtn.innerHTML = "🎲 Kocok Dadu";
+            }
+        }
+
+        function handleRoll() {
+            if (isMoving) return;
+            rollBtn.disabled = true;
+            rollBtn.innerHTML = "🌀 MEMUTAR DADU...";
+
+            currentRoll = Math.floor(Math.random() * 6) + 1;
+            rollDice3D(currentRoll);
+
+            setTimeout(() => {
+                addLog(`${players[turnIndex].name} mendapatkan angka dadu: [ ${currentRoll} ]`, players[turnIndex].color);
+                let playableTokens = getPlayableTokens(players[turnIndex], currentRoll);
+                
+                if (playableTokens.length === 0) {
+                    addLog(`Tidak ada pergerakan valid. Giliran dilewati.`, '#a0aec0');
+                    nextTurn();
+                } else if (playableTokens.length === 1) {
+                    executeMove(players[turnIndex], playableTokens[0], currentRoll);
+                } else {
+                    addLog(`Bebas Pilih! Klik salah satu pion berkedip untuk berjalan.`, "var(--accent-cyan)");
+                    playableTokens.forEach(tIdx => {
+                        document.getElementById(`token-${turnIndex}-${tIdx}`).classList.add('playable');
+                    });
+                }
+            }, 850);
+        }
+
+        function handleTokenClick(pIdx, tIdx) {
+            if (pIdx !== turnIndex || isMoving || players[pIdx].isBot) return;
+            const tokenEl = document.getElementById(`token-${pIdx}-${tIdx}`);
+            if (!tokenEl.classList.contains('playable')) return;
+
+            clearPlayableGlow();
+            executeMove(players[pIdx], tIdx, currentRoll);
+        }
+
+        function clearPlayableGlow() {
+            for(let i=0; i<4; i++) {
+                for(let t=0; t<4; t++) {
+                    document.getElementById(`token-${i}-${t}`).classList.remove('playable');
+                }
+            }
+        }
+
+        function executeBotTurn() {
+            currentRoll = Math.floor(Math.random() * 6) + 1;
+            rollDice3D(currentRoll);
+
+            setTimeout(() => {
+                addLog(`${players[turnIndex].name} meluncurkan dadu: [ ${currentRoll} ]`);
+                let playableTokens = getPlayableTokens(players[turnIndex], currentRoll);
+
+                if (playableTokens.length === 0) {
+                    nextTurn();
+                } else {
+                    let chosenToken = playableTokens.find(t => players[turnIndex].tokens[t] !== -1) ?? playableTokens[0];
+                    executeMove(players[turnIndex], chosenToken, currentRoll);
+                }
+            }, 850);
+        }
+
+        function getPlayableTokens(player, roll) {
+            let validList = [];
+            for (let t = 0; t < 4; t++) {
+                let pos = player.tokens[t];
+                let steps = player.stepCounts[t];
+
+                if (pos === -1 && roll === 6) {
+                    validList.push(t);
+                } else if (pos !== -1 && pos !== 99) {
+                    if (steps + roll <= 56) {
+                        validList.push(t);
+                    }
+                }
+            }
+            return validList;
+        }
+
+        const delay = ms => new Promise(r => setTimeout(r, ms));
+
+        async function executeMove(player, tIdx, roll) {
+            isMoving = true;
+
+            if (player.tokens[tIdx] === -1 && roll === 6) {
+                player.tokens[tIdx] = startIndexes[player.id];
+                player.stepCounts[tIdx] = 0;
+                repositionTokenDOM(player.id, tIdx, true);
+                addLog(`🚀 ${player.name} menerjunkan Pion #${tIdx+1} keluar ke lintasan!`, player.color);
+                await delay(300);
+                await checkCollisions(player, tIdx);
+                nextTurn(roll === 6);
+                return;
+            }
+
+            for (let i = 0; i < roll; i++) {
+                player.stepCounts[tIdx]++;
+                let currentSteps = player.stepCounts[tIdx];
+
+                if (currentSteps >= 51) {
+                    let stripIdx = currentSteps - 51;
+                    if (stripIdx >= 5) {
+                        player.tokens[tIdx] = 99; 
+                        repositionTokenDOM(player.id, tIdx, true);
+                        addLog(`🎉 Pion #${tIdx+1} milik ${player.name} mencapai GOAL!`, "#00ff88");
+                        await delay(300);
+                        break;
+                    } else {
+                        player.tokens[tIdx] = `strip-${player.id}-${stripIdx}`;
+                    }
+                } else {
+                    player.tokens[tIdx] = (player.tokens[tIdx] + 1) % 52;
+                }
+
+                repositionTokenDOM(player.id, tIdx, true);
+                await delay(250); 
+            }
+
+            if (player.tokens[tIdx] !== 99) {
+                await checkCollisions(player, tIdx);
+            }
+
+            nextTurn(roll === 6);
+        }
+
+        async function checkCollisions(player, tIdx) {
+            let myPos = player.tokens[tIdx];
+            if (typeof myPos !== 'number' || myPos === 99) return;
+
+            if (safeZoneIndexes.includes(myPos)) return; 
+
+            for (let opp of players) {
+                if (opp.id === player.id) continue;
+                for (let t = 0; t < 4; t++) {
+                    if (opp.tokens[t] === myPos) {
+                        const targetToken = document.getElementById(`token-${opp.id}-${t}`);
+                        
+                        if(targetToken) {
+                            targetToken.classList.add('kicked');
+                            addLog(`⚔️ BOOM! Pion ${opp.name} tereliminasi oleh ${player.name}!`, "var(--accent-red)");
+                            await delay(600); 
+                            targetToken.classList.remove('kicked');
+                        }
+
+                        opp.tokens[t] = -1;
+                        opp.stepCounts[t] = -1;
+                        repositionTokenDOM(opp.id, t, false);
+                    }
+                }
+            }
+        }
+
+        function repositionTokenDOM(pIdx, tIdx, animate = false) {
+            const tok = document.getElementById(`token-${pIdx}-${tIdx}`);
+            if (!tok) return;
+
+            if (animate) {
+                tok.classList.add('moving');
+                setTimeout(() => tok.classList.remove('moving'), 220);
+            }
+
+            let pos = players[pIdx].tokens[tIdx];
+
+            if (pos === -1) {
+                document.getElementById(`slot-${pIdx}-${tIdx}`).appendChild(tok);
+            } else if (pos === 99) {
+                document.querySelector('.center-goal').appendChild(tok);
+            } else if (typeof pos === 'string' && pos.startsWith('strip-')) {
+                let sIdx = pos.split('-')[2];
+                document.getElementById(`cell-home-strip-${pIdx}-${sIdx}`).appendChild(tok);
+            } else {
+                document.getElementById(`cell-common-${pos}`).appendChild(tok);
+            }
+        }
+
+        function nextTurn(getBonusSix = false) {
+            isMoving = false;
+            
+            let winner = players.find(p => p.tokens.every(pos => pos === 99));
+            if (winner) {
+                document.getElementById('winnerMessageText').innerHTML = `Selamat kepada <span style="color:${winner.color}; font-weight:bold;">${winner.name}</span> yang berhasil mendominasi Ludo Arena!`;
+                document.getElementById('winnerModal').classList.add('open');
+                return;
+            }
+
+            if (getBonusSix) {
+                addLog(`✨ STRIKE BONUS! ${players[turnIndex].name} dapat angka 6, silakan jalan lagi!`, "var(--accent-purple)");
+            } else {
+                turnIndex = (turnIndex + 1) % players.length;
+            }
+
+            triggerTurnStart();
+        }
+
+        function addLog(text, color = '#a0aec0') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.style.color = color;
+            entry.innerText = text;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
