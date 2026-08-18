@@ -1,40 +1,416 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      background: #090d16;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      font-family: sans-serif;
-    }
-
-    .floating-text {
-      font-size: 36px;
-      font-weight: 800;
-      color: #f43f5e;
-      text-shadow: 0 0 15px rgba(244, 63, 94, 0.6);
-      animation: melayang 3s ease-in-out infinite;
-    }
-
-    @keyframes melayang {
-      0%, 100% {
-        transform: translateY(0px) scale(1);
-      }
-      50% {
-        transform: translateY(-15px) scale(1.05);
-        text-shadow: 0 0 25px rgba(244, 63, 94, 0.9);
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <title>Deep Sea Pro: True Precision Patch</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: #020617; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #canvas-frame { box-shadow: 0 0 40px rgba(0, 210, 255, 0.5); border-radius: 16px; overflow: hidden; }
+    </style>
 </head>
 <body>
 
-  <h1 class="floating-text">✨ DLIX ✨</h1>
+<div id="canvas-frame"></div>
+
+<script>
+    const config = {
+        type: Phaser.AUTO,
+        width: 360,
+        height: 640,
+        parent: 'canvas-frame',
+        physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } },
+        scene: { preload: preload, create: create, update: update }
+    };
+
+    const game = new Phaser.Game(config);
+    
+    // Core Data
+    let kail, tali, rodVisual;
+    let money = 0, inventory = { teri: 0, mas: 0, bawal: 0, hiu: 0, kraken: 0 };
+    let playerStats = { rodLevel: 0, baitLevel: 0, lineLevel: 0, boatLevel: 0 };
+    
+    // Database 20 Item Terpisah
+    const shopItems = {
+        rod: [
+            { name: "Bamboo Rod", cost: 0, color: 0xa77044, glow: false },
+            { name: "Carbon Rod", cost: 100, color: 0x333333, glow: false },
+            { name: "Emerald Rod", cost: 500, color: 0x2ecc71, glow: false },
+            { name: "Sapphire Rod", cost: 2000, color: 0x3498db, glow: true },
+            { name: "GODLY ROD", cost: 10000, color: 0xf1c40f, glow: true }
+        ],
+        bait: [
+            { name: "Earthworm", cost: 0, multiplier: 1 },
+            { name: "Fresh Shrimp", cost: 150, multiplier: 1.5 },
+            { name: "Small Fish", cost: 600, multiplier: 2 },
+            { name: "Squid Master", cost: 2500, multiplier: 3 },
+            { name: "MYSTIC LURE", cost: 12000, multiplier: 5 }
+        ],
+        line: [
+            { name: "Sewing Thread", cost: 0, depth: 1200 },
+            { name: "Nylon Line", cost: 200, depth: 2500 },
+            { name: "Steel Wire", cost: 800, depth: 4000 },
+            { name: "Fiber Optic", cost: 3000, depth: 6000 },
+            { name: "PLASMA LINE", cost: 15000, depth: 10000 }
+        ],
+        boat: [
+            { name: "Simple Raft", cost: 0, speed: 200 },
+            { name: "Wood Canoe", cost: 300, speed: 300 },
+            { name: "Motor Boat", cost: 1200, speed: 450 },
+            { name: "Luxury Yacht", cost: 5000, speed: 600 },
+            { name: "FORTRESS BOAT", cost: 25000, speed: 850 }
+        ]
+    };
+
+    // States
+    let gameStatus = 'idle'; 
+    let holdPower = 0, holdDirection = 1, ikanTertangkap = null, ikanGrup;
+    let currentShopTab = 'rod'; 
+    let targetPikselKedalaman = 0; // Mengunci target kedalaman eksak
+
+    // UI
+    let txtMoney, txtStatus, qteText, hBarBg, hBar, qteZonePerfect, qteZoneGood;
+    let popUpShop, popUpInventory, popUpNotif, txtNotif;
+    let shopContentContainer; 
+
+    function preload() {
+        let k = this.make.graphics({ x: 0, y: 0, add: false });
+        k.lineStyle(3, 0xf1f5f9, 1); k.lineBetween(15, 0, 15, 25);
+        k.lineStyle(3, 0xf1f5f9, 1); k.slice(15, 25, 12, 0, Math.PI, false);
+        k.generateTexture('tex_kail', 30, 40);
+
+        const fishData = [
+            { key: 'fish_teri', color: 0x38bdf8, size: [15, 6] },
+            { key: 'fish_mas', color: 0xf59e0b, size: [22, 10] },
+            { key: 'fish_bawal', color: 0xef4444, size: [25, 14] },
+            { key: 'fish_hiu', color: 0x64748b, size: [40, 16] },
+            { key: 'fish_kraken', color: 0x7c3aed, size: [50, 22] }
+        ];
+        fishData.forEach(f => {
+            let gfx = this.make.graphics({ x: 0, y: 0, add: false });
+            gfx.fillStyle(f.color, 1); gfx.fillEllipse(f.size[0], f.size[1], f.size[0], f.size[1]);
+            gfx.fillTriangle(0, f.size[1]-5, 0, f.size[1]+5, 10, f.size[1]);
+            gfx.fillStyle(0xffffff, 1); gfx.fillCircle(f.size[0]*1.6, f.size[1]*0.7, 2);
+            gfx.generateTexture(f.key, f.size[0]*2, f.size[1]*2);
+        });
+    }
+
+    function create() {
+        money = parseInt(localStorage.getItem('f_money')) || 0;
+        playerStats = JSON.parse(localStorage.getItem('f_stats')) || { rodLevel: 0, baitLevel: 0, lineLevel: 0, boatLevel: 0 };
+        inventory = JSON.parse(localStorage.getItem('f_inv')) || { teri: 0, mas: 0, bawal: 0, hiu: 0, kraken: 0 };
+
+        this.physics.world.setBounds(0, 0, 360, 10000);
+        
+        this.add.graphics().fillGradientStyle(0x0284c7, 0x0284c7, 0x010413, 0x010413, 1).fillRect(0, 140, 360, 9860);
+        this.add.graphics().fillStyle(0xfcd34d, 1).fillRect(0, 0, 360, 140);
+        this.add.graphics().fillStyle(0x451a03, 1).fillTriangle(130, 135, 230, 135, 180, 105);
+        
+        rodVisual = this.add.graphics();
+        updateRodVisual();
+
+        tali = this.add.graphics();
+        kail = this.physics.add.image(220, 140, 'tex_kail').setCollideWorldBounds(true).setDepth(5);
+
+        ikanGrup = this.physics.add.group();
+        this.physics.add.overlap(kail, ikanGrup, hitIkan, null, this);
+
+        for (let i = 0; i < 35; i++) { generateIkan(true); }
+        this.time.addEvent({ delay: 3500, callback: () => generateIkan(false), loop: true });
+        this.time.addEvent({ delay: 2000, callback: acakArahBerenangIkan, callbackScope: this, loop: true });
+
+        this.cameras.main.setBounds(0, 0, 360, 10000);
+        this.cameras.main.startFollow(kail, true, 0.1, 0.1, 0, 60);
+
+        // HUD
+        txtMoney = this.add.text(15, 15, `💵 Dompet: ${money}$`, { font: 'bold 15px Arial', fill: '#0f172a' }).setScrollFactor(0).setDepth(10);
+        txtStatus = this.add.text(180, 540, 'TEKAN & TAHAN LAYAR\nUNTUK BIDIK LEMPARAN', { font: 'bold 13px Arial', fill: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0).setDepth(10);
+        qteText = this.add.text(180, 440, '', { font: 'bold 22px Arial', fill: '#fff' }).setOrigin(0.5).setScrollFactor(0).setDepth(10);
+
+        hBarBg = this.add.graphics().fillStyle(0xef4444, 1).fillRect(80, 480, 200, 16).setScrollFactor(0).setDepth(10).setVisible(false);
+        qteZoneGood = this.add.graphics().fillStyle(0xeab308, 1).fillRect(130, 480, 100, 16).setScrollFactor(0).setDepth(10).setVisible(false);
+        qteZonePerfect = this.add.graphics().fillStyle(0x22c55e, 1).fillRect(170, 480, 20, 16).setScrollFactor(0).setDepth(10).setVisible(false);
+        hBar = this.add.graphics().setScrollFactor(0).setDepth(10).setVisible(false);
+
+        createTombolHUD(this, 15, 50, '🛒 SHOP', 0x3b82f6, () => bukaPopUp('shop'));
+        createTombolHUD(this, 95, 50, '🎒 BAG', 0x10b981, () => bukaPopUp('inv'));
+
+        popUpShop = buildSeparateShopUI(this);
+        popUpInventory = buildInventoryUI(this);
+        popUpNotif = buildNotifUI(this);
+
+        setupControlsSystem(this);
+    }
+
+    function updateRodVisual() {
+        const rod = shopItems.rod[playerStats.rodLevel];
+        rodVisual.clear().lineStyle(4, rod.color, 1).lineBetween(180, 110, 220, 75);
+        if (rod.glow) { rodVisual.lineStyle(8, rod.color, 0.4).lineBetween(180, 110, 220, 75); }
+    }
+
+    function buildSeparateShopUI(scene) {
+        let container = scene.add.container(0, 0).setScrollFactor(0).setDepth(300).setVisible(false);
+        let bg = scene.add.graphics().fillStyle(0x0f172a, 0.98).lineStyle(3, 0xffd700).fillRoundedRect(15, 100, 330, 480, 12).strokeRoundedRect(15, 100, 330, 480, 12);
+        let title = scene.add.text(180, 125, '💎 AREA BELANJA', { font: 'bold 18px Arial', fill: '#ffd700' }).setOrigin(0.5);
+        container.add([bg, title]);
+
+        const tabs = ['rod', 'bait', 'line', 'boat'];
+        tabs.forEach((tab, idx) => {
+            let tabBtn = scene.add.graphics().fillStyle(0x1e293b).fillRoundedRect(25 + (idx * 78), 150, 74, 30, 4).setInteractive(new Phaser.Geom.Rectangle(25 + (idx * 78), 150, 74, 30), Phaser.Geom.Rectangle.Contains);
+            let tabTxt = scene.add.text(25 + (idx * 78) + 37, 165, tab.toUpperCase(), { font: 'bold 10px Arial', fill: '#94a3b8' }).setOrigin(0.5);
+            tabBtn.on('pointerdown', () => { currentShopTab = tab; renderShopTabContent(scene, container); });
+            container.add([tabBtn, tabTxt]);
+        });
+
+        shopContentContainer = scene.add.container(0, 0);
+        container.add(shopContentContainer);
+
+        let closeBtn = scene.add.text(180, 555, 'KEMBALI MAIN [X]', { font: 'bold 14px Arial', fill: '#ef4444' }).setOrigin(0.5).setInteractive();
+        closeBtn.on('pointerdown', () => { tutupPopUp('shop'); });
+        container.add(closeBtn);
+        return container;
+    }
+
+    function renderShopTabContent(scene, mainContainer) {
+        shopContentContainer.removeAll(true);
+        let type = currentShopTab;
+        let lv = playerStats[type + 'Level'];
+        let currentItem = shopItems[type][lv];
+        let nextItem = shopItems[type][lv + 1];
+
+        let cardBg = scene.add.graphics().fillStyle(0x1e293b).fillRoundedRect(35, 200, 290, 130, 8);
+        let labelNow = scene.add.text(50, 215, `ITEM LU SEKARANG:`, { font: 'bold 11px Arial', fill: '#a855f7' });
+        let nameNow = scene.add.text(50, 235, currentItem.name, { font: 'bold 18px Arial', fill: '#ffffff' });
+        
+        let specText = "";
+        if (type === 'line') specText = `Maks Kedalaman: ${currentItem.depth}m`;
+        if (type === 'bait') specText = `Bonus Pendapatan: x${currentItem.multiplier}`;
+        if (type === 'boat') specText = `Kecepatan Tarik: ${currentItem.speed}`;
+        if (type === 'rod') specText = currentItem.glow ? "Efek Status: GLOWING EMAS" : "Efek Status: Normal";
+        let specNow = scene.add.text(50, 265, specText, { font: '13px Arial', fill: '#94a3b8' });
+
+        shopContentContainer.add([cardBg, labelNow, nameNow, specNow]);
+
+        if (nextItem) {
+            let buyBtn = scene.add.graphics().fillStyle(0x22c55e).fillRoundedRect(35, 360, 290, 60, 8).setInteractive(new Phaser.Geom.Rectangle(35, 360, 290, 60), Phaser.Geom.Rectangle.Contains);
+            let buyTxt1 = scene.add.text(180, 380, `BELI: ${nextItem.name}`, { font: 'bold 14px Arial', fill: '#fff' }).setOrigin(0.5);
+            let buyTxt2 = scene.add.text(180, 405, `Harga: ${nextItem.cost}$`, { font: 'bold 12px Arial', fill: '#ffd700' }).setOrigin(0.5);
+
+            buyBtn.on('pointerdown', () => {
+                if (money >= nextItem.cost) {
+                    money -= nextItem.cost;
+                    playerStats[type + 'Level']++;
+                    if (type === 'rod') updateRodVisual();
+                    saveData();
+                    pemicuNotifikasiCustom(`SUKSES MEMBELI ${nextItem.name.toUpperCase()}!`);
+                    renderShopTabContent(scene, mainContainer);
+                } else { pemicuNotifikasiCustom("DUIT LU KURENG, MANCING LAGI!"); }
+            });
+            shopContentContainer.add([buyBtn, buyTxt1, buyTxt2]);
+        } else {
+            shopContentContainer.add(scene.add.text(180, 390, '🏆 ITEM SUDAH LEVEL MAKSIMAL!', { font: 'bold 14px Arial', fill: '#22c55e' }).setOrigin(0.5));
+        }
+    }
+
+    function buildInventoryUI(scene) {
+        let container = scene.add.container(0, 0).setScrollFactor(0).setDepth(300).setVisible(false);
+        let bg = scene.add.graphics().fillStyle(0x0f172a, 0.98).lineStyle(3, 0x10b981).fillRoundedRect(30, 140, 300, 360, 12).strokeRoundedRect(30, 140, 300, 360, 12);
+        let title = scene.add.text(180, 170, '🎒 TAS INVENTORI LU', { font: 'bold 18px Arial', fill: '#10b981' }).setOrigin(0.5);
+        txtInvContent = scene.add.text(60, 210, '', { font: '14px Courier', fill: '#fff', lineSpacing: 8 });
+        
+        let sellBtn = scene.add.graphics().fillStyle(0xf59e0b).fillRoundedRect(50, 380, 260, 45, 8).setInteractive(new Phaser.Geom.Rectangle(50, 380, 260, 45), Phaser.Geom.Rectangle.Contains);
+        let sellTxt = scene.add.text(180, 402, '💰 JUAL SEMUA ISI TAS', { font: 'bold 12px Arial', fill: '#fff' }).setOrigin(0.5);
+        
+        sellBtn.on('pointerdown', () => {
+            let mult = shopItems.bait[playerStats.baitLevel].multiplier;
+            let untungMurni = (inventory.teri * 5) + (inventory.mas * 15) + (inventory.bawal * 30) + (inventory.hiu * 80) + (inventory.kraken * 250);
+            let totalProfit = untungMurni * mult;
+
+            if (totalProfit > 0) {
+                money += Math.floor(totalProfit);
+                inventory = { teri: 0, mas: 0, bawal: 0, hiu: 0, kraken: 0 };
+                updateTextTas(); saveData();
+                pemicuNotifikasiCustom(`TAS DIKOSONGKAN: +${Math.floor(totalProfit)}$`);
+            } else { pemicuNotifikasiCustom("TAS LU KOSONG MELONGPONG!"); }
+        });
+
+        let closeBtn = scene.add.text(180, 465, 'TUTUP [X]', { font: 'bold 14px Arial', fill: '#ef4444' }).setOrigin(0.5).setInteractive();
+        closeBtn.on('pointerdown', () => { tutupPopUp('inv'); });
+        container.add([bg, title, txtInvContent, sellBtn, sellTxt, closeBtn]);
+        return container;
+    }
+
+    function setupControlsSystem(scene) {
+        scene.input.on('pointerdown', (pointer) => {
+            if (gameStatus === 'popUpActive') return;
+            if (gameStatus === 'idle') {
+                gameStatus = 'charging'; holdPower = 0; holdDirection = 1; toggleQTEVisual(true);
+            } else if (gameStatus === 'fishing') {
+                gameStatus = 'reeling';
+                kail.setVelocityY(-shopItems.boat[playerStats.boatLevel].speed);
+                txtStatus.setText('MENAHAN LAYAR: Menarik kail...');
+            }
+        });
+
+        scene.input.on('pointerup', () => {
+            if (gameStatus === 'charging') {
+                toggleQTEVisual(false);
+                let power = holdPower, quality = 'BAD', spd = 200;
+
+                // 1. HITUNG HASIL AKURASI BERDASARKAN PRESENTASE DAYA BAR MURNI
+                let maxTaliDepth = shopItems.line[playerStats.lineLevel].depth;
+                
+                if (power >= 45 && power <= 55) { 
+                    quality = '🤩 PERFECT!'; 
+                    spd = 600; // Meluncur super kencang
+                    targetPikselKedalaman = maxTaliDepth - Phaser.Math.Between(10, 100); // 95%+ Jarak tali murni
+                } else if (power >= 25 && power <= 75) { 
+                    quality = '👍 GOOD'; 
+                    spd = 380; 
+                    targetPikselKedalaman = 140 + ((Phaser.Math.Between(55, 80) / 100) * (maxTaliDepth - 140)); // Tengah-bawah
+                } else {
+                    quality = '❌ BAD';
+                    spd = 200; // Lambat
+                    targetPikselKedalaman = 140 + ((Phaser.Math.Between(15, 40) / 100) * (maxTaliDepth - 140)); // Sangat dangkal
+                }
+                
+                qteText.setText(quality).setColor(quality.includes('PERFECT') ? '#22c55e' : (quality.includes('GOOD') ? '#eab308' : '#ef4444'));
+                scene.time.addEvent({ delay: 1000, callback: () => qteText.setText('') });
+
+                gameStatus = 'casting';
+                kail.setVelocityY(spd); // Jalankan kail murni kebawah
+                txtStatus.setText('Kail ditembakkan ke samudera...');
+                
+            } else if (gameStatus === 'reeling') {
+                gameStatus = 'fishing'; kail.setVelocityY(0);
+                txtStatus.setText('KAIL DIAM DI AIR.\nTAP & HOLD LAGI UNTUK TARIK!');
+            }
+        });
+    }
+
+    function update(time) {
+        tali.clear().lineStyle(1.5, 0xffffff, 0.5).lineBetween(220, 75, kail.x, kail.y);
+        txtMoney.setText(`💵 Dompet: ${money}$`);
+
+        if (gameStatus === 'charging') {
+            holdPower += 2.4 * holdDirection; // Sedikit dicepatkan bar ping-pong nya
+            if (holdPower >= 100 || holdPower <= 0) holdDirection *= -1;
+            hBar.clear().fillStyle(0xffffff, 1).fillRect(80, 480, 200 * (holdPower / 100), 16);
+        }
+
+        // --- VALIDASI LOCK KEDALAMAN FIX (PENGGANTI TIMER) ---
+        // Jika status kail meluncur ke bawah dan sudah menyentuh target piksel dari kalkulasi akurasi tadi
+        if (gameStatus === 'casting' && kail.y >= targetPikselKedalaman) {
+            gameStatus = 'fishing';
+            kail.setVelocityY(0);
+            kail.y = targetPikselKedalaman; // Lock posisi eksak piksel
+            txtStatus.setText('KAIL BERHENTI.\nTAP & HOLD UNTUK TARIK!');
+        }
+
+        if (ikanTertangkap && gameStatus === 'reeling') {
+            ikanTertangkap.x = kail.x; ikanTertangkap.y = kail.y + 20;
+        }
+
+        if (gameStatus === 'reeling' && kail.y <= 140) {
+            gameStatus = 'idle'; kail.setVelocityY(0); kail.y = 140; kail.x = 220;
+            txtStatus.setText('TEKAN & TAHAN LAYAR\nUNTUK BIDIK LEMPARAN');
+            if (ikanTertangkap) {
+                inventory[ikanTertangkap.keyData]++;
+                ikanTertangkap.destroy(); ikanTertangkap = null; saveData();
+                pemicuNotifikasiCustom("IKAN MASUK DI TAS!");
+            }
+        }
+
+        ikanGrup.getChildren().forEach(fish => {
+            if (!fish.isCaught) {
+                fish.y += Math.sin(time * 0.003 + fish.x * 0.05) * 0.4;
+                if (fish.y <= 165) {
+                    fish.y = 170;
+                    if (fish.body.velocity.y < 0) fish.body.setVelocityY(Math.abs(fish.body.velocity.y));
+                }
+                if (fish.x > 430) fish.x = -50;
+                else if (fish.x < -60) fish.x = 420;
+            }
+        });
+    }
+
+    function generateIkan(isInitial) {
+        if (gameStatus === 'casting') return;
+        if (!isInitial && ikanGrup.getLength() > 30) return;
+
+        let maxLineDepth = shopItems.line[playerStats.lineLevel].depth;
+        let acakY = Phaser.Math.Between(180, maxLineDepth - 100);
+        let jenis = 'fish_teri', key = 'teri';
+
+        if (acakY > 600 && acakY <= 1500) { jenis = 'fish_mas'; key = 'mas'; }
+        else if (acakY > 1500 && acakY <= 3500) { jenis = 'fish_bawal'; key = 'bawal'; }
+        else if (acakY > 3500 && acakY <= 6500) { jenis = 'fish_hiu'; key = 'hiu'; }
+        else if (acakY > 6500) { jenis = 'fish_kraken'; key = 'kraken'; }
+        
+        let f = ikanGrup.create(isInitial ? Phaser.Math.Between(20, 340) : -50, acakY, jenis);
+        f.keyData = key; f.isCaught = false; 
+        f.setVelocity(Phaser.Math.Between(40, 80), Phaser.Math.Between(-10, 10));
+        f.setDepth(1);
+    }
+
+    function acakArahBerenangIkan() {
+        let maxLineDepth = shopItems.line[playerStats.lineLevel].depth;
+        ikanGrup.getChildren().forEach(f => {
+            if (!f.isCaught) {
+                let vY = Phaser.Math.Between(-15, 15);
+                if (f.y < 220) vY = Phaser.Math.Between(5, 20);
+                if (f.y > maxLineDepth - 150) vY = Phaser.Math.Between(-20, -5);
+                f.setVelocity(Phaser.Math.Between(30, 90) * (Phaser.Math.Between(0, 1) ? 1 : -1), vY);
+                f.flipX = f.body.velocity.x < 0;
+            }
+        });
+    }
+
+    function hitIkan(kail_obj, fish_obj) {
+        if (!ikanTertangkap && (gameStatus === 'casting' || gameStatus === 'reeling')) {
+            if (!fish_obj.isCaught) {
+                fish_obj.isCaught = true; ikanTertangkap = fish_obj; fish_obj.setVelocity(0,0);
+                gameStatus = 'reeling'; kail_obj.setVelocityY(-shopItems.boat[playerStats.boatLevel].speed);
+                txtStatus.setText('DAPET! TAHAN LAYAR\nUNTUK TARIK KE ATAS!');
+            }
+        }
+    }
+
+    function bukaPopUp(t) {
+        gameStatus = 'popUpActive'; kail.setVelocityY(0);
+        if (t === 'shop') { renderShopTabContent(game.scene.scenes[0], popUpShop); popUpShop.setVisible(true); }
+        else { updateTextTas(); popUpInventory.setVisible(true); }
+    }
+
+    function tutupPopUp(t) { gameStatus = 'idle'; popUpShop.setVisible(false); popUpInventory.setVisible(false); }
+    function updateTextTas() { updateInvText(txtInvContent); }
+
+    function buildNotifUI(scene) {
+        let c = scene.add.container(0, -100).setScrollFactor(0).setDepth(400).setVisible(false);
+        let b = scene.add.graphics().fillStyle(0x1e293b, 0.95).lineStyle(2, 0x00d2ff).fillRoundedRect(40, 20, 280, 50, 10).strokeRoundedRect(40, 20, 280, 50, 10);
+        txtNotif = scene.add.text(180, 45, '', { font: 'bold 12px Arial', fill: '#00d2ff' }).setOrigin(0.5);
+        c.add([b, txtNotif]); return c;
+    }
+
+    function pemicuNotifikasiCustom(p) {
+        txtNotif.setText(p); popUpNotif.setVisible(true).y = -100;
+        game.scene.scenes[0].tweens.add({ targets: popUpNotif, y: 0, duration: 300, yoyo: true, hold: 1300, onComplete: () => popUpNotif.setVisible(false) });
+    }
+
+    function createTombolHUD(scene, x, y, label, color, action) {
+        let btn = scene.add.graphics().fillStyle(color, 1).fillRoundedRect(x, y, 70, 30, 5).setScrollFactor(0).setDepth(10);
+        btn.setInteractive(new Phaser.Geom.Rectangle(x, y, 70, 30), Phaser.Geom.Rectangle.Contains);
+        scene.add.text(x + 35, y + 15, label, { font: 'bold 11px Arial', fill: '#fff' }).setOrigin(0.5).setScrollFactor(0).setDepth(11);
+        btn.on('pointerdown', action);
+    }
+
+    function toggleQTEVisual(show) { hBarBg.setVisible(show); qteZoneGood.setVisible(show); qteZonePerfect.setVisible(show); hBar.setVisible(show); }
+    function updateInvText(obj) {
+        obj.setText(`=== KANTONG IKAN LU ===\n\n🐟 Ikan Teri   : ${inventory.teri} ekor  (5$)\n` + `🐠 Ikan Mas    : ${inventory.mas} ekor  (15$)\n` + `🐡 Ikan Bawal  : ${inventory.bawal} ekor  (30$)\n` + `🦈 Hiu Macan   : ${inventory.hiu} ekor  (80$)\n` + `🦑 Kraken Purba: ${inventory.kraken} ekor (250$)\n`);
+    }
+    function saveData() { localStorage.setItem('f_money', money); localStorage.setItem('f_stats', JSON.stringify(playerStats)); localStorage.setItem('f_inv', JSON.stringify(inventory)); }
+</script>
 
 </body>
 </html>
